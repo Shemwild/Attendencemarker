@@ -195,7 +195,7 @@
                 document.getElementById("successBox").style.display = "block";
             })
             .catch(error => {
-                alert("Error marking attendance: " + error);
+                alert("Unable to connect to the backend server. Please ensure your Spring Boot application is running on port 8080. Detailed Error: " + error);
                 console.error('Error:', error);
             });
         }
