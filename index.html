@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Secure Attendance</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f3f4f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            width: 350px;
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #2563eb;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .primary {
+            background: #2563eb;
+            color: white;
+        }
+
+        .secondary {
+            background: #e5e7eb;
+        }
+
+        .success {
+            color: green;
+            text-align: center;
+        }
+
+        .error {
+            color: red;
+            text-align: center;
+        }
+
+        input {
+            width: 100%;
+            padding: 8px;
+            margin-top: 8px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+        }
+
+        #studentInfo {
+            text-align: center;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+
+        <h1>📍 Attendance</h1>
+
+        <!-- Location Section -->
+        <div id="locationBox">
+            <p>Verify your location first</p>
+            <button class="primary" onclick="verifyLocation()">Verify Location</button>
+            <p id="status"></p>
+        </div>
+
+        <!-- Form -->
+        <div id="formBox" style="display:none;">
+            <h3>Enter Details</h3>
+
+            <input type="text" id="name" placeholder="Student Name">
+            <input type="text" id="regno" placeholder="Register Number (e.g., URK24CS7012)">
+            <input type="text" id="dept" placeholder="Department (e.g., AIML)">
+
+            <button class="primary" onclick="submitAttendance()">Submit</button>
+        </div>
+
+        <!-- Success -->
+        <div id="successBox" style="display:none;">
+            <h2 class="success">✅ Attendance Marked</h2>
+            <p id="studentInfo"></p>
+        </div>
+
+        <!-- Optional Test Button -->
+        <button class="secondary" onclick="setTargetToCurrent()">Set Target to My Location</button>
+
+    </div>
+
+    <script>
+        // TARGET LOCATION (Your given coordinates)
+        let targetLat = 10.9395;
+        let targetLng = 76.7428;
+
+        // 50 feet ≈ 15 meters
+        const allowedRadius = 15;
+
+        // Haversine Formula
+        function getDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371e3;
+            const φ1 = lat1 * Math.PI / 180;
+            const φ2 = lat2 * Math.PI / 180;
+            const Δφ = (lat2 - lat1) * Math.PI / 180;
+            const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+            const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                Math.cos(φ1) * Math.cos(φ2) *
+                Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return Math.round(R * c);
+        }
+
+        // VERIFY LOCATION
+        function verifyLocation() {
+            const status = document.getElementById("status");
+
+            if (!navigator.geolocation) {
+                status.innerHTML = "❌ Geolocation not supported";
+                return;
+            }
+
+            status.innerHTML = "📡 Getting location...";
+
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    const lat = pos.coords.latitude;
+                    const lng = pos.coords.longitude;
+
+                    const distance = getDistance(lat, lng, targetLat, targetLng);
+
+                    if (distance <= allowedRadius) {
+                        status.innerHTML = "✅ Verified (" + distance + "m)";
+                        document.getElementById("formBox").style.display = "block";
+                    } else {
+                        status.innerHTML = "❌ You are " + distance + "m away (Allowed: 15m)";
+                    }
+                },
+                () => {
+                    status.innerHTML = "❌ Permission denied";
+                }
+            );
+        }
+
+        function submitAttendance() {
+            const name = document.getElementById("name").value;
+            const regno = document.getElementById("regno").value;
+            const dept = document.getElementById("dept").value;
+
+            if (!name || !regno || !dept) {
+                alert("Please fill all fields");
+                return;
+            }
+
+            fetch('http://localhost:8080/mark', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ name: name, regno: regno, department: dept })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                document.getElementById("studentInfo").innerHTML =
+                    "Name: " + data.name + "<br>" +
+                    "Reg No: " + data.regno + "<br>" +
+                    "Department: " + data.department;
+
+                document.getElementById("formBox").style.display = "none";
+                document.getElementById("successBox").style.display = "block";
+            })
+            .catch(error => {
+                alert("Error marking attendance: " + error);
+                console.error('Error:', error);
+            });
+        }
+
+        // TEST BUTTON (for demo only)
+        function setTargetToCurrent() {
+            navigator.geolocation.getCurrentPosition((pos) => {
+                targetLat = pos.coords.latitude;
+                targetLng = pos.coords.longitude;
+                alert("Target set to your location!");
+            });
+        }
+    </script>
+
+</body>
+
+</html>
